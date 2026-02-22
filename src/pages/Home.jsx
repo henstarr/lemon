@@ -1,116 +1,52 @@
-import { useEffect, useRef } from 'react';
 import ServiceSelector from '../components/ServiceSelector';
-
-function StarField() {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animId;
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const stars = Array.from({ length: 200 }, () => ({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      r: Math.random() * 1.5 + 0.2,
-      speed: Math.random() * 0.3 + 0.05,
-      opacity: Math.random(),
-    }));
-
-    let t = 0;
-    const draw = () => {
-      t += 0.01;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      stars.forEach(s => {
-        const flicker = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * s.speed * 5 + s.x));
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${flicker * s.opacity})`;
-        ctx.fill();
-      });
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-0" />;
-}
 
 export default function Home() {
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background */}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          background: 'radial-gradient(ellipse at 20% 50%, #1a0030 0%, #0a001a 40%, #000000 100%)',
-        }}
-      />
-      <StarField />
+    <div className="cp-app">
+      <main className="cp-shell home-focus-shell">
+        <section className="glass-card home-focus-hero" aria-labelledby="home-title">
+          <div className="home-focus-glow" aria-hidden="true" />
 
-      {/* Floating orbs */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-20 blur-3xl animate-float"
-          style={{ background: 'radial-gradient(circle, #a855f7, transparent)' }} />
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full opacity-15 blur-3xl animate-float"
-          style={{ background: 'radial-gradient(circle, #ec4899, transparent)', animationDelay: '1.5s' }} />
-        <div className="absolute top-2/3 left-1/2 w-64 h-64 rounded-full opacity-10 blur-3xl animate-float"
-          style={{ background: 'radial-gradient(circle, #f97316, transparent)', animationDelay: '3s' }} />
-      </div>
+          <div className="home-focus-copy reveal reveal-visible">
+            <div className="home-focus-brand">
+              <div className="nav-brand">
+                <span className="brand-icon" aria-hidden="true">🍋</span>
+                <span className="brand-text">LEMON</span>
+              </div>
+              <span className="mono-meta home-focus-status">
+                <span className="status-dot" aria-hidden="true" />
+                FILE FLOW READY
+              </span>
+            </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center min-h-screen px-6 py-16">
-        {/* Hero */}
-        <div className="text-center mb-16 animate-float">
-          <div className="inline-block mb-4">
-            <div className="w-20 h-20 mx-auto rounded-full animate-pulse-glow flex items-center justify-center text-4xl"
-              style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)' }}>
-              🍋
+            <p className="mono-meta hero-kicker">LEMON AUDIO VISUALIZER</p>
+            <h1 id="home-title" className="hero-title">LEMON VISUALS</h1>
+            <p className="hero-copy">
+              Pick your audio source, choose a local file, and jump straight into generation preferences with the visualizer running in the background.
+            </p>
+
+            <div className="home-focus-notes">
+              <p className="mono-meta">01 SELECT SOURCE</p>
+              <p className="mono-meta">02 CHOOSE FILE</p>
+              <p className="mono-meta">03 GENERATE VISUALS</p>
             </div>
           </div>
-          <h1 className="text-6xl sm:text-8xl font-black mb-4 tracking-tight">
-            <span className="gradient-text">LEMON</span>
-          </h1>
-          <p className="text-white/50 text-lg sm:text-xl max-w-md mx-auto leading-relaxed font-light">
-            AI‑powered trippy visuals that breathe with your music
-          </p>
-          <div className="flex items-center justify-center gap-3 mt-5">
-            {['Spotify', 'SoundCloud', 'Apple Music', 'Mic'].map((tag, i) => (
-              <span key={i} className="text-xs text-white/30 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
 
-        {/* Service selector */}
-        <div className="w-full">
-          <p className="text-center text-white/40 text-xs tracking-widest uppercase mb-6">
-            Choose your music source
-          </p>
-          <ServiceSelector />
-        </div>
+          <section className="home-login-panel" aria-labelledby="connect-title">
+            <div className="section-header-row home-login-panel-header">
+              <div>
+                <h2 id="connect-title" className="section-title">AUDIO SOURCE</h2>
+                <p className="home-login-panel-copy">
+                  Local file flow opens a dedicated file picker, then routes directly to generation preferences.
+                </p>
+              </div>
+              <span className="mono-meta cyan">LOCAL FILE</span>
+            </div>
 
-        {/* Footer */}
-        <div className="mt-auto pt-16 text-center">
-          <p className="text-white/20 text-xs">
-            Connect a service above to start your visual journey
-          </p>
-        </div>
-      </div>
+            <ServiceSelector />
+          </section>
+        </section>
+      </main>
     </div>
   );
 }

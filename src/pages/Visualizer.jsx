@@ -1,25 +1,38 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 import { useAudioAnalyzer } from '../hooks/useAudioAnalyzer';
 import VisualizerCanvas from '../components/VisualizerCanvas';
 import Controls from '../components/Controls';
-
-const SERVICE_LABELS = {
-  spotify: { name: 'Spotify', icon: '🎵', color: '#1DB954' },
-  soundcloud: { name: 'SoundCloud', icon: '☁', color: '#FF5500' },
-  itunes: { name: 'Apple Music', icon: '🎼', color: '#FC3C44' },
-  mic: { name: 'Microphone', icon: '🎤', color: '#a855f7' },
-  demo: { name: 'Demo Mode', icon: '⚡', color: '#f59e0b' },
-};
+import GenerationPanel from '../components/GenerationPanel';
+import { SERVICE_MAP, serviceRequiresAuth } from '../config/services';
 
 export default function Visualizer() {
   const navigate = useNavigate();
-  const { service, disconnect, visualizerMode, colorTheme, sensitivity, bloom, speed } = useApp();
-  const { audioData, isActive, startMicrophoneInput, startDemoMode, stop } = useAudioAnalyzer();
+  const {
+    service,
+    disconnect,
+    isServiceReady,
+    localAudioFile,
+    visualizerMode,
+    colorTheme,
+    sensitivity,
+    bloom,
+    speed,
+  } = useApp();
+  const { audioData, isActive, startMicrophoneInput, startDemoMode, startAudioFileInput, stop } = useAudioAnalyzer();
   const [showControls, setShowControls] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(service === 'file');
   const [showUI, setShowUI] = useState(true);
   const [error, setError] = useState(null);
+  const [retryingFilePlayback, setRetryingFilePlayback] = useState(false);
+  const initRunRef = useRef(0);
+
+  useEffect(() => {
+    if (service === 'file') {
+      setShowGenerator(true);
+    }
+  }, [service]);
 
   useEffect(() => {
     if (!service) {
@@ -27,9 +40,31 @@ export default function Visualizer() {
       return;
     }
 
+    if (serviceRequiresAuth(service) && !isServiceReady(service)) {
+      navigate(`/auth/${service}?error=${encodeURIComponent('Please sign in before starting the visualizer.')}`);
+      return;
+    }
+
+    if (service === 'file' && !localAudioFile?.url) {
+      navigate(`/file?error=${encodeURIComponent('Please choose an audio file before starting the visualizer.')}`);
+      return;
+    }
+
+    let cancelled = false;
+    const runId = ++initRunRef.current;
+
     const init = async () => {
-      if (service === 'mic') {
+      if (service === 'file') {
+        const ok = await startAudioFileInput(localAudioFile?.url);
+        if (cancelled || runId !== initRunRef.current) return;
+        if (!ok) {
+          setError('Audio file playback failed. Click Start File Playback to retry with a user gesture.');
+        } else {
+          setError(null);
+        }
+      } else if (service === 'mic') {
         const ok = await startMicrophoneInput();
+        if (cancelled || runId !== initRunRef.current) return;
         if (!ok) {
           setError('Microphone access was denied. Falling back to demo mode.');
           startDemoMode();
@@ -42,9 +77,12 @@ export default function Visualizer() {
     };
 
     init();
-    return () => stop();
+    return () => {
+      cancelled = true;
+      stop();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [service]);
+  }, [service, isServiceReady, navigate, localAudioFile, startAudioFileInput]);
 
   // Hide UI after 3s of inactivity
   useEffect(() => {
@@ -70,7 +108,19 @@ export default function Visualizer() {
     navigate('/');
   }, [stop, disconnect, navigate]);
 
-  const svc = SERVICE_LABELS[service] || SERVICE_LABELS.demo;
+  const handleRetryFilePlayback = useCallback(async () => {
+    if (service !== 'file' || !localAudioFile?.url) return;
+    setRetryingFilePlayback(true);
+    setError(null);
+    stop();
+    const ok = await startAudioFileInput(localAudioFile.url);
+    if (!ok) {
+      setError('Audio file playback failed again. Try another file or use Demo Mode.');
+    }
+    setRetryingFilePlayback(false);
+  }, [localAudioFile, service, startAudioFileInput, stop]);
+
+  const svc = SERVICE_MAP[service] || SERVICE_MAP.file;
 
   return (
     <div className="w-screen h-screen overflow-hidden relative bg-black">
@@ -109,20 +159,40 @@ export default function Visualizer() {
             />
           </div>
 
-          <button
-            onClick={() => setShowControls(v => !v)}
-            className="glass rounded-xl px-4 py-2 text-white/70 hover:text-white text-sm flex items-center gap-2 transition-all hover:bg-white/10"
-          >
-            <span>⚙</span> Controls
-          </button>
+          <div className="flex items-center gap-2">
+            {service === 'file' && (
+              <button
+                onClick={() => setShowGenerator((v) => !v)}
+                className="glass rounded-xl px-4 py-2 text-white/70 hover:text-white text-sm flex items-center gap-2 transition-all hover:bg-white/10"
+              >
+                <span>⏺</span> Generation
+              </button>
+            )}
+            <button
+              onClick={() => setShowControls(v => !v)}
+              className="glass rounded-xl px-4 py-2 text-white/70 hover:text-white text-sm flex items-center gap-2 transition-all hover:bg-white/10"
+            >
+              <span>⚙</span> Controls
+            </button>
+          </div>
         </div>
 
         {/* Error banner */}
         {error && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-auto">
-            <div className="glass rounded-xl px-4 py-2 text-yellow-400 text-xs flex items-center gap-2">
-              ⚠ {error}
-              <button onClick={() => setError(null)} className="text-white/40 hover:text-white ml-2">✕</button>
+            <div className="glass rounded-xl px-4 py-2 text-yellow-400 text-xs flex items-center gap-2 max-w-[90vw]">
+              <span>⚠</span>
+              <span>{error}</span>
+              {service === 'file' && localAudioFile?.url && (
+                <button
+                  onClick={handleRetryFilePlayback}
+                  className="ml-1 px-2 py-1 rounded-lg text-[10px] tracking-widest border border-white/15 text-white/80 hover:text-white hover:border-white/30"
+                  disabled={retryingFilePlayback}
+                >
+                  {retryingFilePlayback ? 'STARTING...' : 'START FILE PLAYBACK'}
+                </button>
+              )}
+              <button onClick={() => setError(null)} className="text-white/40 hover:text-white ml-1">✕</button>
             </div>
           </div>
         )}
@@ -155,6 +225,12 @@ export default function Visualizer() {
       {showControls && (
         <div className="ui-overlay absolute top-16 right-4 pointer-events-auto">
           <Controls onClose={() => setShowControls(false)} />
+        </div>
+      )}
+
+      {showGenerator && (
+        <div className="ui-overlay absolute top-16 left-4 pointer-events-auto z-20">
+          <GenerationPanel localAudioFile={localAudioFile} />
         </div>
       )}
     </div>
