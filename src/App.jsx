@@ -12,7 +12,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/file" element={<ServiceAuth />} />
+          <Route path="/file" element={<Navigate to="/" replace />} />
           <Route path="/auth/:service" element={<ServiceAuth />} />
           <Route path="/callback/:service" element={<ServiceCallback />} />
           <Route path="/visualizer" element={<Visualizer />} />

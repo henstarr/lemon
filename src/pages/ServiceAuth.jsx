@@ -44,7 +44,7 @@ export default function ServiceAuth() {
         <div className="service-auth-shell glass-card cy-card rounded-2xl p-5 sm:p-6 w-full max-w-lg">
           <h1 className="section-title mb-3">UNSUPPORTED SOURCE</h1>
           <p className="hero-copy text-left service-auth-copy">
-            <span className="font-mono text-white/90">{requestedServiceId}</span> is not available in this file-only build.
+            <span className="font-mono" style={{ color: 'var(--text)' }}>{requestedServiceId}</span> is not available in this file-only build.
           </p>
           <div className="mt-4">
             <Link to="/" className="cy-btn cy-btn-primary">BACK HOME</Link>
@@ -123,7 +123,7 @@ export default function ServiceAuth() {
 
           {errorText && (
             <div className="file-source-error glass-card" role="alert">
-              <p className="mono-meta text-red-300">FILE ERROR</p>
+              <p className="mono-meta ui-error-text">FILE ERROR</p>
               <p className="file-source-error-copy">{errorText}</p>
             </div>
           )}

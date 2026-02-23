@@ -5,6 +5,8 @@ export function useAudioAnalyzer() {
   const analyzerRef = useRef(null);
   const sourceRef = useRef(null);
   const streamRef = useRef(null);
+  const mediaElementRef = useRef(null);
+  const startTokenRef = useRef(0);
   const dataArrayRef = useRef(null);
   const animFrameRef = useRef(null);
   const [isActive, setIsActive] = useState(false);
@@ -23,6 +25,7 @@ export function useAudioAnalyzer() {
 
   const startMicrophoneInput = useCallback(async () => {
     try {
+      startTokenRef.current += 1;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -40,6 +43,7 @@ export function useAudioAnalyzer() {
   }, [setupAnalyzer]);
 
   const startDemoMode = useCallback(() => {
+    startTokenRef.current += 1;
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     audioContextRef.current = ctx;
     const analyzer = setupAnalyzer(ctx);
@@ -77,7 +81,64 @@ export function useAudioAnalyzer() {
     setIsActive(true);
   }, [setupAnalyzer]);
 
+  const startAudioFileInput = useCallback(async (fileUrl) => {
+    const token = ++startTokenRef.current;
+    try {
+      if (!fileUrl) throw new Error('Missing audio file URL');
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyzer = setupAnalyzer(ctx);
+
+      const audio = new Audio(fileUrl);
+      audio.crossOrigin = 'anonymous';
+      audio.loop = true;
+      audio.autoplay = false;
+      audio.preload = 'auto';
+      audio.playsInline = true;
+
+      const source = ctx.createMediaElementSource(audio);
+      source.connect(analyzer);
+      analyzer.connect(ctx.destination);
+
+      // AudioContext may be suspended until a user gesture. Attempt to resume and play.
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      if (token !== startTokenRef.current) {
+        try { source.disconnect(); } catch { /* noop */ }
+        try { analyzer.disconnect(); } catch { /* noop */ }
+        await ctx.close();
+        return false;
+      }
+
+      audioContextRef.current = ctx;
+      sourceRef.current = source;
+      mediaElementRef.current = audio;
+
+      try {
+        await audio.play();
+      } catch (err) {
+        // React StrictMode can cause an early cleanup in dev that interrupts play(); retry once if still current.
+        if (err?.name === 'AbortError' && token === startTokenRef.current) {
+          await new Promise((resolve) => setTimeout(resolve, 80));
+          await audio.play();
+        } else {
+          throw err;
+        }
+      }
+
+      if (token !== startTokenRef.current) return false;
+      setIsActive(true);
+      return true;
+    } catch (err) {
+      console.error('Audio file playback failed:', err);
+      return false;
+    }
+  }, [setupAnalyzer]);
+
   const stop = useCallback(() => {
+    startTokenRef.current += 1;
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -94,6 +155,14 @@ export function useAudioAnalyzer() {
         }
       } catch { /* ignore stop errors */ }
       sourceRef.current = null;
+    }
+    if (mediaElementRef.current) {
+      try {
+        mediaElementRef.current.pause();
+        mediaElementRef.current.src = '';
+        mediaElementRef.current.load?.();
+      } catch { /* ignore media element cleanup errors */ }
+      mediaElementRef.current = null;
     }
     if (audioContextRef.current) {
       audioContextRef.current.close();
@@ -147,5 +216,5 @@ export function useAudioAnalyzer() {
     return () => stop();
   }, [stop]);
 
-  return { audioData, isActive, startMicrophoneInput, startDemoMode, stop };
+  return { audioData, isActive, startMicrophoneInput, startDemoMode, startAudioFileInput, stop };
 }

@@ -20,9 +20,9 @@ export default function Home() {
             </div>
 
             <p className="mono-meta hero-kicker">LEMON AUDIO VISUALIZER</p>
-            <h1 id="home-title" className="hero-title">LEMON VISUALS</h1>
+            <h1 id="home-title" className="hero-title">LEMON</h1>
             <p className="hero-copy">
-              Pick your audio source, choose a local file, and jump straight into generation preferences with the visualizer running in the background.
+              Choose your local audio file directly here and jump straight into generation preferences in a clean control-room workspace.
             </p>
 
             <div className="home-focus-notes">
@@ -37,7 +37,7 @@ export default function Home() {
               <div>
                 <h2 id="connect-title" className="section-title">AUDIO SOURCE</h2>
                 <p className="home-login-panel-copy">
-                  Local file flow opens a dedicated file picker, then routes directly to generation preferences.
+                  Choose a local file directly from this panel. Lemon routes immediately into the generation workspace.
                 </p>
               </div>
               <span className="mono-meta cyan">LOCAL FILE</span>
